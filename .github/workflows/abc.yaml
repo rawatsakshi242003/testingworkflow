@@ -1,0 +1,58 @@
+name: My CI/CD Workflow
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Code download karega
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2. Node install (optional)
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18"
+
+      # 3. AWS login
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
+          aws-region: ap-south-1
+
+      # 4. ECR login
+      - name: Login to ECR
+        run: |
+          aws ecr get-login-password --region ap-south-1 | \
+          docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-south-1.amazonaws.com
+
+      # 5. Backend image build
+      - name: Build Backend Image
+        run: docker build -t backend ./backend
+
+      # 6. Tag backend
+      - name: Tag Backend
+        run: docker tag backend:latest ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-south-1.amazonaws.com/backend:latest
+
+      # 7. Push backend
+      - name: Push Backend
+        run: docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-south-1.amazonaws.com/backend:latest
+
+      # 8. Frontend image build
+      - name: Build Frontend Image
+        run: docker build -t frontend ./frontend
+
+      # 9. Tag frontend
+      - name: Tag Frontend
+        run: docker tag frontend:latest ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-south-1.amazonaws.com/frontend:latest
+
+      # 10. Push frontend
+      - name: Push Frontend
+        run: docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-south-1.amazonaws.com/frontend:latest
